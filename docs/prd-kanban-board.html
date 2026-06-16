@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PRD: Kanban Board App</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      color: #1a1a2e;
+      background: #f5f6fa;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+
+    /* Sidebar */
+    nav {
+      background: #1a1a2e;
+      color: #c8cdd8;
+      padding: 32px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    nav .logo {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #fff;
+      padding: 0 20px 24px;
+      border-bottom: 1px solid #2e2e4a;
+    }
+
+    nav ul { list-style: none; padding: 16px 0; }
+    nav li a {
+      display: block;
+      padding: 7px 20px;
+      color: #9ba4b5;
+      text-decoration: none;
+      font-size: 13px;
+      border-left: 3px solid transparent;
+      transition: all .15s;
+    }
+    nav li a:hover { color: #fff; background: #2e2e4a; }
+    nav li.section {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: #555e7a;
+      padding: 20px 20px 6px;
+    }
+
+    /* Main */
+    main {
+      padding: 48px 56px;
+      max-width: 900px;
+    }
+
+    .page-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: #1a1a2e;
+      margin-bottom: 6px;
+    }
+
+    .page-meta {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 40px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #dff0d8;
+      color: #2d6a2d;
+      margin-left: 8px;
+    }
+
+    section { margin-bottom: 48px; }
+
+    h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a1a2e;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e8eaf0;
+      margin-bottom: 20px;
+    }
+
+    h3 {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #6b7280;
+      margin: 24px 0 12px;
+    }
+
+    p { margin-bottom: 12px; color: #374151; }
+
+    /* User stories */
+    ol.stories { padding-left: 0; list-style: none; counter-reset: story; }
+    ol.stories li {
+      counter-increment: story;
+      display: flex;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+      font-size: 14px;
+      color: #374151;
+      transition: background .1s;
+    }
+    ol.stories li:hover { background: #eef0f8; }
+    ol.stories li::before {
+      content: counter(story);
+      flex-shrink: 0;
+      width: 24px;
+      height: 24px;
+      background: #e8eaf0;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+      color: #6b7280;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 1px;
+    }
+    ol.stories li .actor { font-weight: 600; color: #4f46e5; }
+    ol.stories li .benefit { color: #6b7280; }
+
+    /* Decision list */
+    .decisions { display: flex; flex-direction: column; gap: 12px; }
+    .decision {
+      background: #fff;
+      border: 1px solid #e8eaf0;
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+    .decision strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 4px;
+    }
+    .decision p { margin: 0; font-size: 14px; color: #4b5563; }
+
+    /* Data model table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      margin-bottom: 16px;
+    }
+    th {
+      background: #f0f1f8;
+      text-align: left;
+      padding: 8px 14px;
+      font-weight: 700;
+      color: #374151;
+      border-bottom: 2px solid #dde0ee;
+    }
+    td {
+      padding: 8px 14px;
+      border-bottom: 1px solid #eef0f8;
+      color: #4b5563;
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f9faff; }
+
+    code {
+      background: #f0f1f8;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: "JetBrains Mono", "Fira Code", monospace;
+      font-size: 12.5px;
+      color: #4f46e5;
+    }
+
+    /* API list */
+    ul.api { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+    ul.api li {
+      font-size: 13.5px;
+      padding: 6px 12px;
+      background: #f9faff;
+      border-left: 3px solid #c7d2fe;
+      border-radius: 0 6px 6px 0;
+      font-family: monospace;
+      color: #374151;
+    }
+
+    /* Out of scope */
+    ul.oos { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    ul.oos li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: #6b7280;
+    }
+    ul.oos li::before {
+      content: "✕";
+      color: #d1d5db;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    /* Test seam cards */
+    .seams { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    .seam {
+      background: #fff;
+      border: 1px solid #e8eaf0;
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .seam .seam-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 8px;
+    }
+    .seam .seam-tool {
+      display: inline-block;
+      background: #ede9fe;
+      color: #5b21b6;
+      border-radius: 4px;
+      padding: 1px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .seam p { font-size: 13px; color: #6b7280; margin: 0; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      nav { display: none; }
+      main { padding: 24px 20px; }
+      .seams { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <nav>
+    <div class="logo">Kanban Board PRD</div>
+    <ul>
+      <li class="section">Overview</li>
+      <li><a href="#problem">Problem Statement</a></li>
+      <li><a href="#solution">Solution</a></li>
+      <li class="section">User Stories</li>
+      <li><a href="#auth">Authentication</a></li>
+      <li><a href="#boards">Board Management</a></li>
+      <li><a href="#columns">Column Management</a></li>
+      <li><a href="#cards">Card Management</a></li>
+      <li><a href="#labels">Labels</a></li>
+      <li><a href="#assignees">Assignees</a></li>
+      <li><a href="#subtasks">Subtasks</a></li>
+      <li><a href="#dnd">Drag &amp; Drop</a></li>
+      <li><a href="#realtime">Real-time</a></li>
+      <li><a href="#validation">Validation</a></li>
+      <li class="section">Technical</li>
+      <li><a href="#implementation">Implementation</a></li>
+      <li><a href="#testing">Testing</a></li>
+      <li><a href="#oos">Out of Scope</a></li>
+    </ul>
+  </nav>
+
+  <main>
+    <div class="page-title">PRD: Kanban Board App <span class="badge">ready-for-agent</span></div>
+    <div class="page-meta">Version 1.0 &nbsp;·&nbsp; June 2026</div>
+
+    <!-- Problem -->
+    <section id="problem">
+      <h2>Problem Statement</h2>
+      <p>Small teams (2–15 people) have no shared visual tool to track who is doing what, what stage each task is in, and what is approaching its deadline. Without this, work gets lost, duplicates appear, and status updates require manual check-ins.</p>
+    </section>
+
+    <!-- Solution -->
+    <section id="solution">
+      <h2>Solution</h2>
+      <p>A web-based single-page Kanban Board app where authenticated Users can create Boards, organise work into Columns, and manage Cards via drag-and-drop. Every Member of a Board sees the same state, which refreshes automatically every 15 seconds without requiring a page reload.</p>
+    </section>
+
+    <!-- User Stories -->
+    <section id="auth">
+      <h2>User Stories</h2>
+      <h3>Authentication</h3>
+      <ol class="stories">
+        <li><span>As a <span class="actor">visitor</span>, I want to <b>register</b> with my name, email, and password, so that I can access the app.</span></li>
+        <li><span>As a <span class="actor">visitor</span>, I want to <b>log in</b> with my email and password, so that I can reach my Boards.</span></li>
+        <li><span>As a <span class="actor">logged-in User</span>, I want to <b>log out</b>, so that my session ends on this device.</span></li>
+        <li><span>As a <span class="actor">logged-in User</span>, I want to <b>view my profile page</b>, so that I can see my current display name and email.</span></li>
+        <li><span>As a <span class="actor">logged-in User</span>, I want to <b>change my display name</b>, so that teammates see the right name on my avatar.</span></li>
+        <li><span>As a <span class="actor">logged-in User</span>, I want to <b>change my email address</b>, so that I can keep my account up to date.</span></li>
+        <li><span>As a <span class="actor">logged-in User</span>, I want to <b>change my password</b>, so that I can maintain account security.</span></li>
+        <li><span>As a <span class="actor">visitor who has not logged in</span>, I want to be <b>redirected to the login page</b> when I try to open a Board URL, so that unauthorised access is prevented.</span></li>
+      </ol>
+    </section>
+
+    <section id="boards">
+      <h3>Board Management</h3>
+      <ol class="stories" start="9">
+        <li><span>As a <span class="actor">logged-in User</span>, I want to see a <b>grid of all my Boards</b> split into "My Boards" and "Shared with me", so that I can quickly find the Board I need.</span></li>
+        <li><span>As a <span class="actor">logged-in User</span>, I want to <b>create a new Board</b> with a name, so that I can start organising work for a project.</span></li>
+        <li><span>As a <span class="actor">Board Owner</span>, I want to <b>rename my Board</b>, so that the name stays accurate as the project evolves.</span></li>
+        <li><span>As a <span class="actor">Board Owner</span>, I want to <b>delete my Board</b>, so that I can remove workspaces that are no longer needed.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to be <b>prevented from deleting</b> a Board I do not own, so that Owners retain control.</span></li>
+        <li><span>As a <span class="actor">Board Owner</span>, I want to <b>invite an existing User by email</b> to my Board, so that they can collaborate immediately without needing to accept an invitation.</span></li>
+        <li><span>As an <span class="actor">invited User</span>, I want to see the Board I was added to in my <b>"Shared with me" section</b>, so that I can start working without any extra steps.</span></li>
+      </ol>
+    </section>
+
+    <section id="columns">
+      <h3>Column Management</h3>
+      <ol class="stories" start="16">
+        <li><span>As a <span class="actor">Member</span>, I want to <b>add a Column</b> to a Board with a name, so that I can define a new stage for work.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>rename a Column</b>, so that the stage name reflects current workflow.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>delete a Column</b>, so that unused stages can be removed.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>drag Columns</b> left or right to reorder them, so that the stages appear in the order that matches my workflow.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>assign a color</b> to a Column from a preset palette or a full color picker, so that I can visually distinguish stages at a glance.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>remove the color</b> from a Column and return it to the default grey, so that I can undo a color choice.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to see the Column's color applied as a <b>tinted background</b> across the entire Column, so that the visual grouping is immediately obvious.</span></li>
+      </ol>
+    </section>
+
+    <section id="cards">
+      <h3>Card Management</h3>
+      <ol class="stories" start="23">
+        <li><span>As a <span class="actor">Member</span>, I want to click <b>"+ New card"</b> at the bottom of a Column and type a title inline, so that I can quickly add tasks without leaving the Board.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to press <b>Enter to save</b> a new Card or <b>Escape to cancel</b>, so that keyboard-driven workflows are fast.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to open a Card in a <b>Side Drawer</b> by clicking on it, so that I can view and edit its full details without leaving the Board.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>edit a Card's title</b> in the Side Drawer, so that I can correct mistakes or clarify the task.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>add or edit a Card's description</b> in the Side Drawer, so that I can provide context for the task.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>set a due date</b> on a Card using a date picker, so that the team knows when the task must be completed.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to see a due date that has passed displayed in <b>red</b> on the Card face, so that overdue tasks are immediately obvious.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>clear a Card's due date</b>, so that deadlines can be removed when no longer applicable.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>delete a Card</b>, so that completed or cancelled tasks can be removed.</span></li>
+      </ol>
+    </section>
+
+    <section id="labels">
+      <h3>Labels</h3>
+      <ol class="stories" start="32">
+        <li><span>As a <span class="actor">Member</span>, I want to <b>create a Label</b> with a name and color on a Board, so that I can define tags relevant to that Board's work.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>rename or recolor a Label</b>, so that I can keep the tag vocabulary accurate.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>attach multiple Labels</b> to a Card, so that a task can belong to more than one category.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to designate one attached Label as the <b>Primary Label</b> for a Card, so that the most important category is shown prominently on the Card face.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want non-primary Labels to be <b>visible only in the Side Drawer</b>, so that the Card face stays uncluttered.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>detach a Label</b> from a Card, so that incorrect tags can be removed.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>delete a Label</b> from a Board, so that unused tags do not accumulate.</span></li>
+      </ol>
+    </section>
+
+    <section id="assignees">
+      <h3>Assignees</h3>
+      <ol class="stories" start="39">
+        <li><span>As a <span class="actor">Member</span>, I want to <b>assign one or more Members</b> to a Card, so that responsibility is clear.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to see <b>assignee profile avatars</b> on the Card face, so that I can tell at a glance who owns a task.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>remove an Assignee</b> from a Card, so that reassignments can be made cleanly.</span></li>
+      </ol>
+    </section>
+
+    <section id="subtasks">
+      <h3>Subtasks</h3>
+      <ol class="stories" start="42">
+        <li><span>As a <span class="actor">Member</span>, I want to <b>add Subtasks</b> to a Card as a checklist, so that I can track smaller steps within a task.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>check or uncheck a Subtask</b>, so that I can mark steps as done or reopen them.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>edit a Subtask's name</b>, so that I can correct or clarify a step.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>reorder Subtasks</b> within a Card, so that I can arrange steps logically.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>delete a Subtask</b>, so that irrelevant steps can be removed.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to see a <b>progress indicator</b> (e.g. "3 / 5") on the Card face, so that I can gauge task completion at a glance.</span></li>
+      </ol>
+    </section>
+
+    <section id="dnd">
+      <h3>Drag &amp; Drop</h3>
+      <ol class="stories" start="48">
+        <li><span>As a <span class="actor">Member</span>, I want to <b>drag a Card from one Column to another</b>, so that I can update a task's status.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to <b>drag a Card up or down</b> within the same Column, so that I can reprioritise tasks.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want the Board to <b>respond instantly when I drop a Card</b> (optimistic update), so that the interaction feels snappy.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want the Card position to <b>revert automatically</b> if the server rejects the move, so that the Board stays consistent.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want the Card's new position to <b>persist after a page refresh</b>, so that drag results are durable.</span></li>
+      </ol>
+    </section>
+
+    <section id="realtime">
+      <h3>Real-time Collaboration</h3>
+      <ol class="stories" start="53">
+        <li><span>As a <span class="actor">Member</span>, I want the Board to <b>refresh automatically every 15 seconds</b>, so that I see my teammates' changes without reloading.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want the Board to <b>update silently in the background</b>, so that my current interaction is not interrupted.</span></li>
+      </ol>
+    </section>
+
+    <section id="validation">
+      <h3>Validation</h3>
+      <ol class="stories" start="55">
+        <li><span>As a <span class="actor">Member</span>, I want to see an error if I try to save a <b>Board name</b> that is empty or longer than 100 characters.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to see an error if I try to save a <b>Column name</b> that is empty or longer than 100 characters.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to see an error if I try to save a <b>Card title</b> that is empty or longer than 255 characters.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to see an error if I try to save a <b>Card description</b> longer than 5,000 characters.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to see an error if I try to save a <b>Subtask name</b> that is empty or longer than 100 characters.</span></li>
+        <li><span>As a <span class="actor">Member</span>, I want to see an error if I try to add a <b>21st Subtask</b> to a Card, so that the 20-Subtask limit is enforced.</span></li>
+        <li><span>As a <span class="actor">User</span>, I want to see an error if my new <b>password</b> is shorter than 8 characters or the confirmation does not match.</span></li>
+      </ol>
+    </section>
+
+    <!-- Implementation -->
+    <section id="implementation">
+      <h2>Implementation Decisions</h2>
+
+      <h3>Monorepo Structure</h3>
+      <div class="decisions">
+        <div class="decision">
+          <strong>Frontend</strong>
+          <p>React + Vite + TypeScript at the repo root under <code>src/</code></p>
+        </div>
+        <div class="decision">
+          <strong>Backend</strong>
+          <p>Express + Node.js + TypeScript under <code>server/</code> with its own <code>package.json</code></p>
+        </div>
+      </div>
+
+      <h3>Backend</h3>
+      <div class="decisions">
+        <div class="decision"><strong>Framework</strong><p>Express with TypeScript</p></div>
+        <div class="decision"><strong>ORM / Migrations</strong><p>Prisma against PostgreSQL</p></div>
+        <div class="decision"><strong>Auth</strong><p>JWT issued on login, stored in <code>localStorage</code>, sent as <code>Authorization: Bearer &lt;token&gt;</code>. See ADR-0002.</p></div>
+        <div class="decision"><strong>Ordering</strong><p>Cards and Columns store <code>position FLOAT</code>. New position = average of neighbours. Single-row UPDATE per move. See ADR-0001.</p></div>
+      </div>
+
+      <h3>Frontend</h3>
+      <div class="decisions">
+        <div class="decision"><strong>State</strong><p>TanStack Query manages server state. Zustand manages ephemeral drag-and-drop positions before server confirmation.</p></div>
+        <div class="decision"><strong>Drag &amp; Drop</strong><p>dnd-kit — cross-column Card moves, same-column reordering, and Column reordering.</p></div>
+        <div class="decision"><strong>Polling</strong><p>TanStack Query <code>refetchInterval: 15000</code> on the Board query.</p></div>
+        <div class="decision"><strong>Styling</strong><p>Tailwind CSS. Column background uses a low-opacity tint derived from the Column color.</p></div>
+        <div class="decision"><strong>Card Detail</strong><p>Side Drawer sliding in from the right. Never a separate page or centered modal.</p></div>
+        <div class="decision"><strong>New Card</strong><p>Inline text input at bottom of Column. Enter = save, Escape = cancel.</p></div>
+      </div>
+
+      <h3>Data Model</h3>
+      <table>
+        <thead>
+          <tr><th>Entity</th><th>Key Fields</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>User</strong></td><td>id, name, email, hashed_password</td></tr>
+          <tr><td><strong>Board</strong></td><td>id, name, owner → User, members → User[]</td></tr>
+          <tr><td><strong>Column</strong></td><td>id, board, name, color (nullable), position (float)</td></tr>
+          <tr><td><strong>Card</strong></td><td>id, column, title, description (nullable), due_date (nullable), position (float)</td></tr>
+          <tr><td><strong>Label</strong></td><td>id, board, name, color — scoped to one Board</td></tr>
+          <tr><td><strong>CardLabel</strong></td><td>card, label, is_primary (bool)</td></tr>
+          <tr><td><strong>CardAssignee</strong></td><td>card, user</td></tr>
+          <tr><td><strong>Subtask</strong></td><td>id, card, name, is_done, position (float)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>API Endpoints (REST)</h3>
+      <ul class="api">
+        <li>POST /auth/register &nbsp;·&nbsp; POST /auth/login</li>
+        <li>GET /users/me &nbsp;·&nbsp; PATCH /users/me</li>
+        <li>GET /boards &nbsp;·&nbsp; POST /boards &nbsp;·&nbsp; GET /boards/:id &nbsp;·&nbsp; PATCH /boards/:id &nbsp;·&nbsp; DELETE /boards/:id</li>
+        <li>POST /boards/:id/members &nbsp;&nbsp;<em>(invite by email)</em></li>
+        <li>GET /boards/:id/columns &nbsp;·&nbsp; POST /boards/:id/columns &nbsp;·&nbsp; PATCH /columns/:id &nbsp;·&nbsp; DELETE /columns/:id</li>
+        <li>GET /columns/:id/cards &nbsp;·&nbsp; POST /columns/:id/cards &nbsp;·&nbsp; PATCH /cards/:id &nbsp;·&nbsp; DELETE /cards/:id</li>
+        <li>PATCH /cards/:id/move &nbsp;&nbsp;<em>(column + position)</em></li>
+        <li>GET /boards/:id/labels &nbsp;·&nbsp; POST /boards/:id/labels &nbsp;·&nbsp; PATCH /labels/:id &nbsp;·&nbsp; DELETE /labels/:id</li>
+        <li>POST /cards/:id/labels/:labelId &nbsp;·&nbsp; DELETE /cards/:id/labels/:labelId &nbsp;·&nbsp; PATCH /cards/:id/labels/:labelId &nbsp;&nbsp;<em>(set primary)</em></li>
+        <li>POST /cards/:id/assignees/:userId &nbsp;·&nbsp; DELETE /cards/:id/assignees/:userId</li>
+        <li>GET /cards/:id/subtasks &nbsp;·&nbsp; POST /cards/:id/subtasks &nbsp;·&nbsp; PATCH /subtasks/:id &nbsp;·&nbsp; DELETE /subtasks/:id</li>
+      </ul>
+    </section>
+
+    <!-- Testing -->
+    <section id="testing">
+      <h2>Testing Decisions</h2>
+      <p>A good test checks observable behaviour at the boundary — what a real client sends and receives — not internal implementation details like which Prisma query was called.</p>
+      <div class="seams">
+        <div class="seam">
+          <div class="seam-title">Backend — API Integration</div>
+          <div class="seam-tool">supertest + Prisma</div>
+          <p>Real PostgreSQL test DB. Each suite seeds and tears down its own data. Do not mock Prisma.</p>
+        </div>
+        <div class="seam">
+          <div class="seam-title">Frontend — Component Integration</div>
+          <div class="seam-tool">React Testing Library</div>
+          <p>Mocked TanStack Query. Test Board rendering, Card face, Drawer, inline creation, optimistic revert.</p>
+        </div>
+        <div class="seam">
+          <div class="seam-title">Zustand Store — Unit</div>
+          <div class="seam-tool">Vitest</div>
+          <p>Optimistic position update and revert logic in isolation, without rendering any components.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Out of scope -->
+    <section id="oos">
+      <h2>Out of Scope</h2>
+      <ul class="oos">
+        <li>Notification system (in-app, email, or push)</li>
+        <li>Comments on Cards</li>
+        <li>File attachments on Cards</li>
+        <li>Alternative Board views (calendar, timeline, report)</li>
+        <li>Granular role permissions beyond Owner / Member</li>
+        <li>Mobile app (web browser only for v1)</li>
+      </ul>
+    </section>
+
+  </main>
+</div>
+</body>
+</html>
