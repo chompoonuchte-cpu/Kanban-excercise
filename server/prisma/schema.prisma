@@ -51,6 +51,17 @@ model Card {
   createdAt   DateTime       @default(now())
   labels      CardLabel[]
   assignees   CardAssignee[]
+  subtasks    Subtask[]
+}
+
+model Subtask {
+  id        String   @id @default(uuid())
+  cardId    String
+  card      Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  title     String
+  isDone    Boolean  @default(false)
+  position  Float
+  createdAt DateTime @default(now())
 }
 
 model CardAssignee {

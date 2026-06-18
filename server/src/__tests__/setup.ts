@@ -2,6 +2,7 @@ import { beforeEach, afterAll } from "vitest";
 import { prisma } from "../db.js";
 
 beforeEach(async () => {
+  await prisma.subtask.deleteMany();
   await prisma.cardAssignee.deleteMany();
   await prisma.cardLabel.deleteMany();
   await prisma.card.deleteMany();

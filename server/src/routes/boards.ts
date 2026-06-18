@@ -77,6 +77,7 @@ boardsRouter.get("/:id", async (req, res) => {
               assignees: {
                 include: { user: { select: { id: true, displayName: true } } },
               },
+              subtasks: { select: { isDone: true } },
             },
           },
         },
@@ -91,8 +92,9 @@ boardsRouter.get("/:id", async (req, res) => {
       cards: col.cards.map((card) => {
         const primary = card.labels[0]?.label ?? null;
         const assignees = card.assignees.map((a) => a.user);
-        const { labels: _labels, assignees: _assignees, ...cardData } = card;
-        return { ...cardData, primaryLabel: primary, assignees };
+        const subtaskCount = { completed: card.subtasks.filter((s) => s.isDone).length, total: card.subtasks.length };
+        const { labels: _labels, assignees: _assignees, subtasks: _subtasks, ...cardData } = card;
+        return { ...cardData, primaryLabel: primary, assignees, subtaskCount };
       }),
     })),
   };

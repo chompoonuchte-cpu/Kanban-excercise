@@ -7,12 +7,14 @@ import { LABEL_COLORS, LABEL_COLOR_HEX, type LabelColor } from "@kanban/shared";
 
 type AssigneeSummary = { id: string; displayName: string };
 type PrimaryLabel = { id: string; name: string; color: string } | null;
-type CardData = { id: string; title: string; position: number; primaryLabel?: PrimaryLabel; assignees?: AssigneeSummary[]; dueDate?: string | null };
+type SubtaskCount = { completed: number; total: number };
+type CardData = { id: string; title: string; position: number; primaryLabel?: PrimaryLabel; assignees?: AssigneeSummary[]; dueDate?: string | null; subtaskCount?: SubtaskCount };
 type ColumnData = { id: string; name: string; color: string | null; position: number; cards: CardData[] };
 type BoardData = { id: string; name: string; ownerId: string; columns: ColumnData[] };
 type LabelData = { id: string; name: string; color: string; boardId: string };
 type CardLabelEntry = { labelId: string; isPrimary: boolean; label: LabelData };
-type CardDetail = { id: string; title: string; description: string | null; dueDate: string | null; columnId: string; labels: CardLabelEntry[] };
+type SubtaskData = { id: string; title: string; isDone: boolean; position: number };
+type CardDetail = { id: string; title: string; description: string | null; dueDate: string | null; columnId: string; labels: CardLabelEntry[]; subtasks: SubtaskData[] };
 type MemberEntry = { userId: string; role: "OWNER" | "MEMBER"; user: { id: string; displayName: string; email: string } };
 type SearchUser = { id: string; displayName: string; email: string };
 
@@ -417,6 +419,50 @@ export default function BoardPage() {
                   </div>
                 </div>
               </div>
+              {/* Subtasks */}
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase">
+                  Subtasks {drawerCard.subtasks.length > 0 && `(${drawerCard.subtasks.filter((s) => s.isDone).length}/${drawerCard.subtasks.length})`}
+                </label>
+                <div className="space-y-1">
+                  {drawerCard.subtasks.map((st) => (
+                    <div key={st.id} className="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={st.isDone}
+                        onChange={async () => {
+                          await apiFetch(`/subtasks/${st.id}`, { method: "PATCH", body: JSON.stringify({ isDone: !st.isDone }) });
+                          const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`);
+                          setDrawerCard(updated);
+                          await loadBoard();
+                        }}
+                        className="h-4 w-4"
+                      />
+                      <span className={`flex-1 text-sm ${st.isDone ? "line-through text-gray-400" : "text-gray-800"}`}>{st.title}</span>
+                      <button onClick={async () => {
+                        await apiFetch(`/subtasks/${st.id}`, { method: "DELETE" });
+                        const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`);
+                        setDrawerCard(updated);
+                        await loadBoard();
+                      }} className="text-xs text-red-400 hover:text-red-600">&times;</button>
+                    </div>
+                  ))}
+                </div>
+                {drawerCard.subtasks.length < 20 && (
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    const input = (e.target as HTMLFormElement).elements.namedItem("subtaskTitle") as HTMLInputElement;
+                    if (!input.value.trim()) return;
+                    await apiFetch(`/cards/${drawerCard.id}/subtasks`, { method: "POST", body: JSON.stringify({ title: input.value }) });
+                    input.value = "";
+                    const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`);
+                    setDrawerCard(updated);
+                    await loadBoard();
+                  }} className="mt-2">
+                    <input name="subtaskTitle" type="text" placeholder="+ Add subtask" maxLength={100} className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
+                  </form>
+                )}
+              </div>
               {/* Due Date */}
               <div>
                 <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase">Due Date</label>
@@ -537,6 +583,9 @@ function DraggableCard({ card, onClick }: { card: CardData; onClick: () => void 
             <span className={`text-xs ${isOverdue ? "text-red-500 font-semibold" : "text-gray-400"}`}>
               &#128197; {formatThaiDate(card.dueDate)}
             </span>
+          )}
+          {card.subtaskCount && card.subtaskCount.total > 0 && (
+            <span className="text-xs text-gray-400">{card.subtaskCount.completed}/{card.subtaskCount.total}</span>
           )}
         </div>
         <div className="flex -space-x-1">

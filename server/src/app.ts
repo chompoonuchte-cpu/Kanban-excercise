@@ -7,6 +7,7 @@ import { boardsRouter } from "./routes/boards.js";
 import { columnsRouter } from "./routes/columns.js";
 import { cardsRouter } from "./routes/cards.js";
 import { labelsRouter } from "./routes/labels.js";
+import { subtasksRouter } from "./routes/subtasks.js";
 import { requireAuth } from "./middleware/auth.js";
 
 export const app = express();
@@ -23,6 +24,7 @@ app.use("/api/boards", boardsRouter);
 app.use("/api", columnsRouter);
 app.use("/api", cardsRouter);
 app.use("/api", labelsRouter);
+app.use("/api", subtasksRouter);
 
 app.get("/api/health", (_req, res) => {
   const body: HealthResponse = { status: "ok" };

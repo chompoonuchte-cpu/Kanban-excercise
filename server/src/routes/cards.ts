@@ -57,6 +57,7 @@ cardsRouter.get("/cards/:id", async (req, res) => {
     include: {
       column: { select: { boardId: true } },
       labels: { include: { label: true } },
+      subtasks: { orderBy: { position: "asc" } },
     },
   });
 
