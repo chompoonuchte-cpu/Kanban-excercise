@@ -74,6 +74,9 @@ boardsRouter.get("/:id", async (req, res) => {
                 include: { label: true },
                 take: 1,
               },
+              assignees: {
+                include: { user: { select: { id: true, displayName: true } } },
+              },
             },
           },
         },
@@ -87,8 +90,9 @@ boardsRouter.get("/:id", async (req, res) => {
       ...col,
       cards: col.cards.map((card) => {
         const primary = card.labels[0]?.label ?? null;
-        const { labels: _labels, ...cardData } = card;
-        return { ...cardData, primaryLabel: primary };
+        const assignees = card.assignees.map((a) => a.user);
+        const { labels: _labels, assignees: _assignees, ...cardData } = card;
+        return { ...cardData, primaryLabel: primary, assignees };
       }),
     })),
   };

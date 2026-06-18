@@ -186,3 +186,52 @@ cardsRouter.delete("/cards/:id", async (req, res) => {
   await prisma.card.delete({ where: { id: card.id } });
   res.status(204).end();
 });
+
+// --- Assignees ---
+
+cardsRouter.post("/cards/:cardId/assignees", async (req, res) => {
+  const { userId: currentUserId } = req as AuthRequest;
+  const card = await prisma.card.findUnique({
+    where: { id: req.params.cardId },
+    include: { column: { select: { boardId: true } } },
+  });
+  if (!card) { res.status(404).json({ error: "Card not found" }); return; }
+  if (!(await canAccessBoard(card.column.boardId, currentUserId!))) {
+    res.status(403).json({ error: "Not authorized" });
+    return;
+  }
+
+  const { userId } = req.body;
+  const board = await prisma.board.findUnique({ where: { id: card.column.boardId } });
+  const isMember = board!.ownerId === userId ||
+    !!(await prisma.boardMember.findUnique({ where: { boardId_userId: { boardId: card.column.boardId, userId } } }));
+
+  if (!isMember) {
+    res.status(403).json({ error: "User is not a Board Member" });
+    return;
+  }
+
+  const assignee = await prisma.cardAssignee.create({
+    data: { cardId: card.id, userId },
+  });
+
+  res.status(201).json(assignee);
+});
+
+cardsRouter.delete("/cards/:cardId/assignees/:userId", async (req, res) => {
+  const { userId: currentUserId } = req as AuthRequest;
+  const card = await prisma.card.findUnique({
+    where: { id: req.params.cardId },
+    include: { column: { select: { boardId: true } } },
+  });
+  if (!card) { res.status(404).json({ error: "Card not found" }); return; }
+  if (!(await canAccessBoard(card.column.boardId, currentUserId!))) {
+    res.status(403).json({ error: "Not authorized" });
+    return;
+  }
+
+  await prisma.cardAssignee.deleteMany({
+    where: { cardId: card.id, userId: req.params.userId },
+  });
+  res.status(204).end();
+});

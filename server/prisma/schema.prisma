@@ -15,6 +15,7 @@ model User {
   createdAt    DateTime      @default(now())
   boards       Board[]
   memberships  BoardMember[]
+  assignments  CardAssignee[]
 }
 
 model Board {
@@ -40,15 +41,25 @@ model Column {
 }
 
 model Card {
-  id          String      @id @default(uuid())
+  id          String         @id @default(uuid())
   columnId    String
-  column      Column      @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  column      Column         @relation(fields: [columnId], references: [id], onDelete: Cascade)
   title       String
   description String?
   dueDate     DateTime?
   position    Float
-  createdAt   DateTime    @default(now())
+  createdAt   DateTime       @default(now())
   labels      CardLabel[]
+  assignees   CardAssignee[]
+}
+
+model CardAssignee {
+  cardId String
+  userId String
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([cardId, userId])
 }
 
 model Label {

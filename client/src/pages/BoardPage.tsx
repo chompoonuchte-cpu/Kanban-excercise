@@ -5,8 +5,9 @@ import { useAuth } from "../contexts/AuthContext.tsx";
 import { apiFetch, ApiError } from "../lib/api.ts";
 import { LABEL_COLORS, LABEL_COLOR_HEX, type LabelColor } from "@kanban/shared";
 
+type AssigneeSummary = { id: string; displayName: string };
 type PrimaryLabel = { id: string; name: string; color: string } | null;
-type CardData = { id: string; title: string; position: number; primaryLabel?: PrimaryLabel };
+type CardData = { id: string; title: string; position: number; primaryLabel?: PrimaryLabel; assignees?: AssigneeSummary[]; dueDate?: string | null };
 type ColumnData = { id: string; name: string; color: string | null; position: number; cards: CardData[] };
 type BoardData = { id: string; name: string; ownerId: string; columns: ColumnData[] };
 type LabelData = { id: string; name: string; color: string; boardId: string };
@@ -416,6 +417,74 @@ export default function BoardPage() {
                   </div>
                 </div>
               </div>
+              {/* Due Date */}
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase">Due Date</label>
+                <input
+                  type="datetime-local"
+                  value={drawerCard.dueDate ? new Date(new Date(drawerCard.dueDate).getTime() - new Date(drawerCard.dueDate).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""}
+                  onChange={async (e) => {
+                    const val = e.target.value;
+                    const dueDate = val ? new Date(val).toISOString() : null;
+                    const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`, { method: "PATCH", body: JSON.stringify({ dueDate }) });
+                    setDrawerCard(updated);
+                    await loadBoard();
+                  }}
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              {/* Assignees */}
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase">Assignees</label>
+                <div className="space-y-1">
+                  {members.filter((m) => {
+                    const cardRes = apiFetch<CardDetail>(`/cards/${drawerCard.id}`);
+                    void cardRes;
+                    return true;
+                  }).map((m) => {
+                    const isAssigned = board?.columns.some((col) =>
+                      col.cards.some((c) => c.id === drawerCard.id && c.assignees?.some((a) => a.id === m.userId))
+                    );
+                    return (
+                      <button
+                        key={m.userId}
+                        onClick={async () => {
+                          if (isAssigned) {
+                            await apiFetch(`/cards/${drawerCard.id}/assignees/${m.userId}`, { method: "DELETE" });
+                          } else {
+                            await apiFetch(`/cards/${drawerCard.id}/assignees`, { method: "POST", body: JSON.stringify({ userId: m.userId }) });
+                          }
+                          await loadBoard();
+                        }}
+                        className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm ${isAssigned ? "bg-blue-50" : "hover:bg-gray-50"}`}
+                      >
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-600 text-[10px] font-bold text-white">
+                          {m.user.displayName.charAt(0).toUpperCase()}
+                        </div>
+                        <span>{m.user.displayName}</span>
+                        {isAssigned && <span className="ml-auto text-xs text-blue-600">&#10003;</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Move Column */}
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase">Column</label>
+                <select
+                  value={drawerCard.columnId}
+                  onChange={async (e) => {
+                    const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`, { method: "PATCH", body: JSON.stringify({ columnId: e.target.value }) });
+                    setDrawerCard(updated);
+                    await loadBoard();
+                  }}
+                  className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                >
+                  {board?.columns.map((col) => (
+                    <option key={col.id} value={col.id}>{col.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="border-t border-gray-200 px-6 py-4">
               <button onClick={deleteCardFromDrawer} className="text-sm text-red-600 hover:underline">Delete Card</button>
@@ -440,8 +509,14 @@ function DroppableColumn({ col, children }: { col: ColumnData; children: React.R
   );
 }
 
+function formatThaiDate(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
+}
+
 function DraggableCard({ card, onClick }: { card: CardData; onClick: () => void }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: card.id });
+  const isOverdue = card.dueDate ? new Date() > new Date(card.dueDate) : false;
   return (
     <button
       ref={setNodeRef}
@@ -456,6 +531,22 @@ function DraggableCard({ card, onClick }: { card: CardData; onClick: () => void 
         </span>
       )}
       <p className="text-sm font-medium text-gray-800">{card.title}</p>
+      <div className="mt-2 flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          {card.dueDate && (
+            <span className={`text-xs ${isOverdue ? "text-red-500 font-semibold" : "text-gray-400"}`}>
+              &#128197; {formatThaiDate(card.dueDate)}
+            </span>
+          )}
+        </div>
+        <div className="flex -space-x-1">
+          {card.assignees?.map((a) => (
+            <div key={a.id} className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-600 text-[10px] font-bold text-white ring-2 ring-white" title={a.displayName}>
+              {a.displayName.charAt(0).toUpperCase()}
+            </div>
+          ))}
+        </div>
+      </div>
     </button>
   );
 }
