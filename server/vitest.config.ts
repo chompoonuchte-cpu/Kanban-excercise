@@ -5,6 +5,7 @@ export default defineConfig({
     globals: true,
     environment: "node",
     setupFiles: ["./src/__tests__/setup.ts"],
+    fileParallelism: false,
     env: {
       DATABASE_URL: "postgresql://kanban:kanban@localhost:5433/kanban_test",
       JWT_SECRET: "test-secret",

@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.tsx";
 
 export default function HomePage() {
@@ -8,12 +9,20 @@ export default function HomePage() {
       <h1 className="text-2xl font-bold text-gray-800">
         Welcome, {user?.displayName}
       </h1>
-      <button
-        onClick={logout}
-        className="mt-4 rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300"
-      >
-        Logout
-      </button>
+      <div className="mt-4 flex gap-3">
+        <Link
+          to="/profile"
+          className="rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300"
+        >
+          Profile
+        </Link>
+        <button
+          onClick={logout}
+          className="rounded bg-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-300"
+        >
+          Logout
+        </button>
+      </div>
     </div>
   );
 }
