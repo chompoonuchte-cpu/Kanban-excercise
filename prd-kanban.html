@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PRD — Kanban Board App</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #1a1a2e;
+      --heading: #16213e;
+      --accent: #0f3460;
+      --border: #e0e0e0;
+      --code-bg: #f4f4f8;
+      --section-bg: #fafbfc;
+      --tag-bg: #e8f0fe;
+      --tag-text: #1a73e8;
+      --out-bg: #fff3e0;
+      --out-text: #e65100;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.7;
+      color: var(--text);
+      background: var(--bg);
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      color: var(--heading);
+      border-bottom: 3px solid var(--accent);
+      padding-bottom: 12px;
+      margin-bottom: 32px;
+    }
+
+    h2 {
+      font-size: 1.5rem;
+      color: var(--accent);
+      margin-top: 48px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h3 {
+      font-size: 1.15rem;
+      color: var(--heading);
+      margin-top: 28px;
+      margin-bottom: 12px;
+    }
+
+    p {
+      margin-bottom: 16px;
+    }
+
+    ol {
+      padding-left: 24px;
+      margin-bottom: 16px;
+    }
+
+    ol li {
+      margin-bottom: 8px;
+      padding-left: 4px;
+    }
+
+    ul {
+      padding-left: 24px;
+      margin-bottom: 16px;
+    }
+
+    ul li {
+      margin-bottom: 6px;
+      list-style-type: disc;
+    }
+
+    strong {
+      color: var(--heading);
+    }
+
+    code {
+      background: var(--code-bg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.9em;
+      font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+    }
+
+    .section-card {
+      background: var(--section-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .user-story-group {
+      background: var(--section-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+
+    .user-story-group h3 {
+      margin-top: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .user-story-group h3::before {
+      content: attr(data-icon);
+      font-size: 1.2rem;
+    }
+
+    .badge {
+      display: inline-block;
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    .out-of-scope ul li {
+      color: var(--out-text);
+    }
+
+    .out-of-scope {
+      background: var(--out-bg);
+      border: 1px solid #ffcc80;
+      border-radius: 8px;
+      padding: 20px 24px;
+    }
+
+    .decision-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .decision-item {
+      background: var(--section-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 24px;
+    }
+
+    .decision-item h3 {
+      margin-top: 0;
+    }
+
+    .toc {
+      background: var(--section-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-bottom: 32px;
+    }
+
+    .toc h2 {
+      margin-top: 0;
+      border-bottom: none;
+      padding-bottom: 0;
+      font-size: 1.15rem;
+    }
+
+    .toc ol {
+      columns: 2;
+      column-gap: 32px;
+    }
+
+    .toc a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .toc a:hover {
+      text-decoration: underline;
+    }
+
+    .note-box {
+      background: #e8f5e9;
+      border: 1px solid #a5d6a7;
+      border-radius: 8px;
+      padding: 20px 24px;
+      margin-top: 24px;
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 20px 16px 60px; }
+      h1 { font-size: 1.5rem; }
+      h2 { font-size: 1.25rem; }
+      .toc ol { columns: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>PRD — Kanban Board App</h1>
+
+  <nav class="toc">
+    <h2>Table of Contents</h2>
+    <ol>
+      <li><a href="#problem">Problem Statement</a></li>
+      <li><a href="#solution">Solution</a></li>
+      <li><a href="#user-stories">User Stories</a></li>
+      <li><a href="#implementation">Implementation Decisions</a></li>
+      <li><a href="#testing">Testing Decisions</a></li>
+      <li><a href="#out-of-scope">Out of Scope</a></li>
+      <li><a href="#notes">Further Notes</a></li>
+    </ol>
+  </nav>
+
+  <!-- Problem Statement -->
+  <h2 id="problem">Problem Statement</h2>
+  <div class="section-card">
+    <p>Small teams (2–15 people) need a simple, visual way to track who is doing what and which tasks are approaching their deadlines. Existing tools are either too heavyweight or require setup that exceeds the team's needs. The team wants a lightweight, browser-based Kanban board where everyone can see the big picture, drag tasks between stages, and stay roughly in sync — without real-time infrastructure complexity.</p>
+  </div>
+
+  <!-- Solution -->
+  <h2 id="solution">Solution</h2>
+  <div class="section-card">
+    <p>A single-page web application that lets authenticated Users create Boards, organize work into Columns and Cards, and collaborate with invited Members. Cards support due dates, Labels, Assignees, and Subtasks. Drag-and-drop drives the primary interaction for moving Cards between Columns, reordering Cards within a Column, and reordering Subtasks. The UI responds optimistically to user actions and periodically polls for teammate changes.</p>
+  </div>
+
+  <!-- User Stories -->
+  <h2 id="user-stories">User Stories</h2>
+
+  <div class="user-story-group">
+    <h3 data-icon="🔐">Authentication <span class="badge">5 stories</span></h3>
+    <ol>
+      <li>As a visitor, I want to register with a display name, email, and password, so that I can access the app.</li>
+      <li>As a visitor, I want to log in with my email and password, so that I can access my Boards.</li>
+      <li>As a User, I want to log out, so that my session ends on the current device.</li>
+      <li>As a visitor, I want to be redirected to the login page when I try to access any Board without being logged in, so that unauthenticated access is prevented.</li>
+      <li>As a User, I want my session to persist for 7 days without re-logging in, so that I don't have to authenticate constantly.</li>
+    </ol>
+  </div>
+
+  <div class="user-story-group">
+    <h3 data-icon="👤">Profile <span class="badge">4 stories</span></h3>
+    <ol start="6">
+      <li>As a User, I want to view my profile page, so that I can see my current display name and email.</li>
+      <li>As a User, I want to edit my display name, so that teammates see the name I prefer.</li>
+      <li>As a User, I want to change my email address, so that I can keep my account up to date.</li>
+      <li>As a User, I want to change my password (minimum 8 characters, must confirm), so that I can maintain account security.</li>
+    </ol>
+  </div>
+
+  <div class="user-story-group">
+    <h3 data-icon="📋">Board List <span class="badge">5 stories</span></h3>
+    <ol start="10">
+      <li>As a User, I want to see a card grid of all Boards I own or am a Member of, so that I can pick which Board to work on.</li>
+      <li>As a User, I want to create a new Board with a name, so that I can start organizing work.</li>
+      <li>As an Owner, I want to rename my Board, so that the name stays relevant.</li>
+      <li>As an Owner, I want to delete my Board, so that I can remove Boards no longer needed.</li>
+      <li>As a Member, I want to be prevented from deleting a Board, so that only the Owner controls Board lifecycle.</li>
+    </ol>
+  </div>
+
+  <div class="user-story-group">
+    <h3 data-icon="👥">Board Membership <span class="badge">2 stories</span></h3>
+    <ol start="15">
+      <li>As an Owner or Member, I want to invite a registered User to my Board by searching their name or email, so that they can collaborate immediately without an acceptance step.</li>
+      <li>As an Owner or Member, I want to see the list of Members on a Board, so that I know who has access.</li>
+    </ol>
+  </div>
+
+  <div class="user-story-group">
+    <h3 data-icon="📊">Columns <span class="badge">7 stories</span></h3>
+    <ol start="17">
+      <li>As a Member, I want to add a new Column to a Board, so that I can define workflow stages.</li>
+      <li>As a Member, I want to rename a Column, so that the stage label stays accurate.</li>
+      <li>As a Member, I want to delete a Column, so that I can remove stages no longer needed.</li>
+      <li>As a Member, I want to reorder Columns by dragging, so that the workflow reads left-to-right in the order I choose.</li>
+      <li>As a Member, I want to set a Column's color from a preset palette or custom hex picker, so that Columns are visually distinct.</li>
+      <li>As a Member, I want to remove a Column's color so it reverts to the default gray, so that I can undo color choices.</li>
+      <li>As a Member, I want to see the Card count next to each Column header, so that I know the workload distribution at a glance.</li>
+    </ol>
+  </div>
+
+  <div class="user-story-group">
+    <h3 data-icon="🃏">Cards — Board View <span class="badge">10 stories</span></h3>
+    <ol start="24">
+      <li>As a Member, I want to create a new Card via an Inline Input at the bottom of a Column, so that I can quickly add tasks.</li>
+      <li>As a Member, I want to see each Card's title on the board, so that I can scan tasks.</li>
+      <li>As a Member, I want to see the Primary Label displayed prominently on the Card face, so that I can identify the Card's category at a glance.</li>
+      <li>As a Member, I want to see Assignee avatars (initials) on the Card face, so that I know who is responsible.</li>
+      <li>As a Member, I want to see the due date on the Card face, so that I know when it's due.</li>
+      <li>As a Member, I want overdue Cards to be visually distinct (e.g. red date text), so that I can spot late tasks immediately.</li>
+      <li>As a Member, I want to see Subtask progress (e.g. "3/8") on the Card face, so that I can gauge completion without opening the Card.</li>
+      <li>As a Member, I want to drag a Card to a different Column, so that I can change its workflow stage.</li>
+      <li>As a Member, I want to drag a Card within the same Column to reorder it, so that I can prioritize tasks.</li>
+      <li>As a Member, I want drag-and-drop to feel smooth, with the new position persisted so it survives a page refresh.</li>
+    </ol>
+  </div>
+
+  <div class="user-story-group">
+    <h3 data-icon="📝">Cards — Side Drawer (Detail View) <span class="badge">9 stories</span></h3>
+    <ol start="34">
+      <li>As a Member, I want to click a Card to open a Side Drawer from the right, so that I can view and edit all Card details.</li>
+      <li>As a Member, I want to edit the Card title inline in the Side Drawer.</li>
+      <li>As a Member, I want to add or edit a plain-text description (max 5,000 characters) in the Side Drawer.</li>
+      <li>As a Member, I want to set a due date and time via a date-time picker, defaulting to 23:59 if no time is selected.</li>
+      <li>As a Member, I want to add or remove Labels on a Card, choosing from the Board's label pool.</li>
+      <li>As a Member, I want to designate one of the Card's Labels as the Primary Label, so that it appears on the Card face.</li>
+      <li>As a Member, I want to assign or unassign Members as Assignees on a Card.</li>
+      <li>As a Member, I want to move a Card to a different Column from within the Side Drawer.</li>
+      <li>As a Member, I want to delete a Card from the Side Drawer.</li>
+    </ol>
+  </div>
+
+  <div class="user-story-group">
+    <h3 data-icon="✅">Subtasks <span class="badge">6 stories</span></h3>
+    <ol start="43">
+      <li>As a Member, I want to add a Subtask (max 20 per Card) with a name inside the Side Drawer.</li>
+      <li>As a Member, I want to check or uncheck a Subtask to mark it done or not done.</li>
+      <li>As a Member, I want to edit a Subtask's name.</li>
+      <li>As a Member, I want to reorder Subtasks by dragging within the Side Drawer.</li>
+      <li>As a Member, I want to delete a Subtask.</li>
+      <li>As a Member, I want Subtask progress to update on the Card face immediately when I check/uncheck.</li>
+    </ol>
+  </div>
+
+  <div class="user-story-group">
+    <h3 data-icon="🏷️">Labels <span class="badge">4 stories</span></h3>
+    <ol start="49">
+      <li>As a Member, I want to create a new Label on a Board with a name and a color chosen from a preset palette.</li>
+      <li>As a Member, I want to edit a Label's name.</li>
+      <li>As a Member, I want to change a Label's color to a different preset.</li>
+      <li>As a Member, I want to delete a Label from the Board, removing it from all Cards that had it.</li>
+    </ol>
+  </div>
+
+  <div class="user-story-group">
+    <h3 data-icon="🔄">Near-Real-Time Collaboration <span class="badge">2 stories</span></h3>
+    <ol start="53">
+      <li>As a Member, I want the Board to automatically refresh periodically (every 10–15 seconds), so that I see teammates' changes without manually reloading.</li>
+      <li>As a Member, I want the refresh to be non-disruptive — it should not interrupt my current drag or edit.</li>
+    </ol>
+  </div>
+
+  <div class="user-story-group">
+    <h3 data-icon="⚡">Optimistic Updates &amp; Error Handling <span class="badge">2 stories</span></h3>
+    <ol start="55">
+      <li>As a Member, I want my actions (move Card, check Subtask, etc.) to reflect immediately in the UI without waiting for the server.</li>
+      <li>As a Member, I want to see a toast notification if the server rejects my action, so that I understand why the UI rolled back.</li>
+    </ol>
+  </div>
+
+  <div class="user-story-group">
+    <h3 data-icon="🛡️">Validation <span class="badge">1 story</span></h3>
+    <ol start="57">
+      <li>As a User, I want to see validation errors when I submit invalid data (empty title, title too long, password too short, password confirmation mismatch), so that I can correct my input.</li>
+    </ol>
+  </div>
+
+  <!-- Implementation Decisions -->
+  <h2 id="implementation">Implementation Decisions</h2>
+
+  <div class="decision-grid">
+    <div class="decision-item">
+      <h3>Architecture</h3>
+      <ul>
+        <li><strong>Monorepo</strong> with three top-level directories: <code>client/</code>, <code>server/</code>, <code>shared/</code>.</li>
+        <li><code>shared/</code> contains TypeScript types, constants (e.g. label color presets, validation limits), and validation schemas consumed by both client and server.</li>
+      </ul>
+    </div>
+
+    <div class="decision-item">
+      <h3>Backend</h3>
+      <ul>
+        <li><strong>Express</strong> (Node.js) REST API.</li>
+        <li><strong>Prisma</strong> ORM with <strong>PostgreSQL</strong>.</li>
+        <li>JWT access token (single token, 7-day expiry) stored in <code>localStorage</code>, sent via <code>Authorization: Bearer</code> header (see ADR-0002).</li>
+      </ul>
+    </div>
+
+    <div class="decision-item">
+      <h3>Frontend</h3>
+      <ul>
+        <li><strong>React 19</strong> + <strong>Vite</strong> + <strong>TypeScript</strong>.</li>
+        <li><strong>React Router</strong> for client-side routing.</li>
+        <li><strong>TanStack Query</strong> for server state, caching, optimistic updates, and polling (<code>refetchInterval</code>).</li>
+        <li><strong>Tailwind CSS</strong> for styling.</li>
+        <li><strong>@dnd-kit</strong> for all drag-and-drop (Cards across/within Columns, Column reorder, Subtask reorder).</li>
+        <li><strong>Toast library</strong> (e.g. <code>react-hot-toast</code> or <code>sonner</code>) for rollback notifications.</li>
+      </ul>
+    </div>
+
+    <div class="decision-item">
+      <h3>Data Model (key decisions)</h3>
+      <ul>
+        <li>Card and Column ordering uses <strong>float <code>position</code></strong> — inserting between two items averages their positions, requiring only a single-row UPDATE (see ADR-0001).</li>
+        <li>Subtask ordering also uses float position.</li>
+        <li>Column <code>color</code> is a <strong>nullable hex string</strong> (<code>#RRGGBB</code>). <code>null</code> means default gray. UI provides a preset palette plus a custom color picker.</li>
+        <li>Label <code>color</code> is a <strong>preset enum</strong> — a fixed set of 10–12 distinguishable colors. No custom hex.</li>
+        <li>Label is scoped to a single Board. Each Board has its own set of Labels.</li>
+        <li>One Label per Card can be designated as the <strong>Primary Label</strong>, displayed on the Card face. Other Labels are visible in the Side Drawer.</li>
+        <li>Due date is stored as <code>TIMESTAMPTZ</code>. A Card is overdue when <code>now() &gt; dueDate</code>. If the user selects a date without specifying a time, the time defaults to 23:59.</li>
+        <li>User avatars are <strong>initials only</strong> — generated at the frontend from the user's display name. No image upload.</li>
+      </ul>
+    </div>
+
+    <div class="decision-item">
+      <h3>API Design</h3>
+      <ul>
+        <li><strong>REST</strong> endpoints under <code>/api/</code>.</li>
+        <li>Board view uses <strong>eager loading</strong>: <code>GET /api/boards/:id</code> returns the Board with all Columns, Cards (with Primary Label, Assignee summaries, Subtask counts), in a single response. Full Subtask details are loaded when the Side Drawer opens.</li>
+        <li>Polling: client sets <code>refetchInterval</code> on the board query (10–15 seconds).</li>
+      </ul>
+    </div>
+
+    <div class="decision-item">
+      <h3>Invitation Flow</h3>
+      <ul>
+        <li>Search registered Users by name or email, add them as Members immediately — no acceptance step required.</li>
+      </ul>
+    </div>
+
+    <div class="decision-item">
+      <h3>Board List</h3>
+      <ul>
+        <li>Shows only Boards where the current User is Owner or Member, displayed as a <strong>card grid</strong>.</li>
+      </ul>
+    </div>
+
+    <div class="decision-item">
+      <h3>Card Detail</h3>
+      <ul>
+        <li>Always opens in a <strong>Side Drawer</strong> (slides from right). Never a modal or separate page.</li>
+        <li>Description is <strong>plain text</strong> only.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Testing Decisions -->
+  <h2 id="testing">Testing Decisions</h2>
+
+  <div class="section-card">
+    <h3>Philosophy</h3>
+    <p>Tests verify <strong>external behavior</strong>, not implementation details. A good test calls a public interface (HTTP endpoint, rendered component) and asserts on observable output (response body/status, rendered DOM, visible text). Internal function signatures, database queries, and state shapes are not asserted directly.</p>
+  </div>
+
+  <div class="section-card">
+    <h3>Test Seams</h3>
+    <ol>
+      <li><strong>REST API layer</strong> (primary seam) — Integration tests using supertest + Vitest against a running Express app connected to a test PostgreSQL database. Covers: authentication, authorization (Owner vs Member), CRUD for all resources, validation rules, drag-and-drop position updates, optimistic-update-compatible response shapes.</li>
+      <li><strong>Database layer</strong> — Prisma schema tests verifying constraints, relations, and cascading behavior (e.g. deleting a Board cascades to Columns, Cards, Subtasks, Labels). Runs against a test database.</li>
+      <li><strong>React component layer</strong> — UI behavior tests using React Testing Library + Vitest. Covers: Board renders Cards in correct Columns, overdue badge appears when <code>now() &gt; dueDate</code>, toast appears on mutation failure, Card face shows Primary Label / Assignee initials / Subtask progress, Side Drawer opens on Card click.</li>
+    </ol>
+
+    <h3>Prior Art</h3>
+    <p>No existing tests in the codebase. Vitest will be set up for both <code>client/</code> and <code>server/</code>.</p>
+  </div>
+
+  <!-- Out of Scope -->
+  <h2 id="out-of-scope">Out of Scope</h2>
+
+  <div class="out-of-scope">
+    <p>Per the Product Spec, the following are explicitly deferred beyond v1:</p>
+    <ul>
+      <li>Notification system (in-app or email)</li>
+      <li>Comments on Cards / file attachments</li>
+      <li>Alternative views (calendar, timeline, reports)</li>
+      <li>Granular roles/permissions beyond Owner and Member</li>
+      <li>Mobile app</li>
+      <li>Rich text / Markdown in Card descriptions</li>
+      <li>User avatar image upload</li>
+      <li>Invite-with-acceptance flow</li>
+      <li>Refresh token rotation</li>
+      <li>WebSocket / SSE real-time updates</li>
+    </ul>
+  </div>
+
+  <!-- Further Notes -->
+  <h2 id="notes">Further Notes</h2>
+
+  <div class="note-box">
+    <ul>
+      <li>The domain glossary in <code>CONTEXT.md</code> defines the canonical vocabulary. All UI copy, API field names, and test descriptions should use these terms (Board, Column, Card, Label, Primary Label, Subtask, Assignee, Owner, Member, User, Side Drawer, Inline Input).</li>
+      <li>ADR-0001 (float position ordering) and ADR-0002 (JWT in localStorage) are already decided and should not be revisited.</li>
+      <li>The app displays dates in Thai locale format (e.g. "14 มิ.ย. 2569") as shown in the mockup. Locale handling should be consistent across the UI.</li>
+    </ul>
+  </div>
+
+</body>
+</html>
