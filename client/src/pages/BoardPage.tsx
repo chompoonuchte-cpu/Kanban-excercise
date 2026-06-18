@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { DndContext, DragOverlay, useDroppable, useDraggable, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { apiFetch, ApiError } from "../lib/api.ts";
 import { LABEL_COLORS, LABEL_COLOR_HEX, type LabelColor } from "@kanban/shared";
@@ -23,8 +25,7 @@ const PRESET_COLORS = ["#EF4444", "#F97316", "#EAB308", "#22C55E", "#14B8A6", "#
 export default function BoardPage() {
   const { id } = useParams();
   const { user, logout } = useAuth();
-  const [board, setBoard] = useState<BoardData | null>(null);
-  const [members, setMembers] = useState<MemberEntry[]>([]);
+  const queryClient = useQueryClient();
   const [showInvite, setShowInvite] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
@@ -38,23 +39,39 @@ export default function BoardPage() {
   const [drawerCard, setDrawerCard] = useState<CardDetail | null>(null);
   const [drawerTitle, setDrawerTitle] = useState("");
   const [drawerDesc, setDrawerDesc] = useState("");
-  const [boardLabels, setBoardLabels] = useState<LabelData[]>([]);
   const [activeCard, setActiveCard] = useState<CardData | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState("");
   const cardInputRef = useRef<HTMLInputElement>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  async function loadBoard() {
-    const data = await apiFetch<BoardData>(`/boards/${id}`);
-    setBoard(data);
-  }
+  const { data: board } = useQuery({
+    queryKey: ["board", id],
+    queryFn: () => apiFetch<BoardData>(`/boards/${id}`),
+    refetchInterval: isDragging || drawerCard ? false : 10000,
+  });
 
-  async function loadLabels() {
-    const labels = await apiFetch<LabelData[]>(`/boards/${id}/labels`);
-    setBoardLabels(labels);
-  }
+  const { data: members = [] } = useQuery({
+    queryKey: ["board-members", id],
+    queryFn: () => apiFetch<MemberEntry[]>(`/boards/${id}/members`),
+  });
 
-  useEffect(() => { loadBoard(); apiFetch<MemberEntry[]>(`/boards/${id}/members`).then(setMembers); loadLabels(); }, [id]);
+  const { data: boardLabels = [] } = useQuery({
+    queryKey: ["board-labels", id],
+    queryFn: () => apiFetch<LabelData[]>(`/boards/${id}/labels`),
+  });
+
+  function invalidateBoard() { queryClient.invalidateQueries({ queryKey: ["board", id] }); }
+  function invalidateLabels() { queryClient.invalidateQueries({ queryKey: ["board-labels", id] }); }
+  function invalidateMembers() { queryClient.invalidateQueries({ queryKey: ["board-members", id] }); }
+
+  async function mutate(fn: () => Promise<unknown>) {
+    try { await fn(); } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Operation failed";
+      toast.error(msg);
+      invalidateBoard();
+    }
+  }
 
   useEffect(() => {
     if (searchQuery.length < 2) { setSearchResults([]); return; }
@@ -68,45 +85,50 @@ export default function BoardPage() {
 
   async function handleInvite(userId: string) {
     setError("");
-    try {
+    await mutate(async () => {
       await apiFetch(`/boards/${id}/members`, { method: "POST", body: JSON.stringify({ userId }) });
-      setMembers(await apiFetch<MemberEntry[]>(`/boards/${id}/members`));
+      invalidateMembers();
       setSearchQuery(""); setSearchResults([]);
-    } catch (err) { setError(err instanceof ApiError ? err.message : "Failed"); }
+    });
   }
 
   async function handleRemove(userId: string) {
-    await apiFetch(`/boards/${id}/members/${userId}`, { method: "DELETE" });
-    setMembers((prev) => prev.filter((m) => m.userId !== userId));
+    await mutate(async () => {
+      await apiFetch(`/boards/${id}/members/${userId}`, { method: "DELETE" });
+      invalidateMembers();
+    });
   }
 
   async function handleAddColumn(e: FormEvent) {
     e.preventDefault(); setError("");
-    try {
+    await mutate(async () => {
       await apiFetch(`/boards/${id}/columns`, { method: "POST", body: JSON.stringify({ name: newColName }) });
-      setNewColName(""); setShowAddColumn(false); await loadBoard();
-    } catch (err) { setError(err instanceof ApiError ? err.message : "Failed"); }
+      setNewColName(""); setShowAddColumn(false); invalidateBoard();
+    });
   }
 
   async function handleUpdateColumn(colId: string) {
     setError("");
-    try {
+    await mutate(async () => {
       await apiFetch(`/columns/${colId}`, { method: "PATCH", body: JSON.stringify({ name: editColName, color: editColColor }) });
-      setEditingColId(null); await loadBoard();
-    } catch (err) { setError(err instanceof ApiError ? err.message : "Failed"); }
+      setEditingColId(null); invalidateBoard();
+    });
   }
 
   async function handleDeleteColumn(colId: string) {
-    try { await apiFetch(`/columns/${colId}`, { method: "DELETE" }); await loadBoard(); } catch {}
+    await mutate(async () => {
+      await apiFetch(`/columns/${colId}`, { method: "DELETE" });
+      invalidateBoard();
+    });
   }
 
   async function handleCreateCard(columnId: string) {
     if (!newCardTitle.trim()) return;
     setError("");
-    try {
+    await mutate(async () => {
       await apiFetch(`/columns/${columnId}/cards`, { method: "POST", body: JSON.stringify({ title: newCardTitle }) });
-      setNewCardTitle(""); setAddingCardColId(null); await loadBoard();
-    } catch (err) { setError(err instanceof ApiError ? err.message : "Failed"); }
+      setNewCardTitle(""); setAddingCardColId(null); invalidateBoard();
+    });
   }
 
   function handleCardInputKey(e: KeyboardEvent, columnId: string) {
@@ -123,24 +145,27 @@ export default function BoardPage() {
 
   async function saveDrawer() {
     if (!drawerCard) return;
-    try {
+    await mutate(async () => {
       const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`, {
         method: "PATCH",
         body: JSON.stringify({ title: drawerTitle, description: drawerDesc || null }),
       });
       setDrawerCard(updated);
-      await loadBoard();
-    } catch (err) { setError(err instanceof ApiError ? err.message : "Failed"); }
+      invalidateBoard();
+    });
   }
 
   async function deleteCardFromDrawer() {
     if (!drawerCard) return;
-    await apiFetch(`/cards/${drawerCard.id}`, { method: "DELETE" });
-    setDrawerCard(null);
-    await loadBoard();
+    await mutate(async () => {
+      await apiFetch(`/cards/${drawerCard.id}`, { method: "DELETE" });
+      setDrawerCard(null);
+      invalidateBoard();
+    });
   }
 
   function handleDragStart(event: DragStartEvent) {
+    setIsDragging(true);
     if (!board) return;
     const cardId = event.active.id as string;
     for (const col of board.columns) {
@@ -163,7 +188,7 @@ export default function BoardPage() {
     }
 
     if (sourceColId && targetColId && sourceColId !== targetColId) {
-      setBoard((prev) => {
+      queryClient.setQueryData<BoardData>(["board", id], (prev) => {
         if (!prev) return prev;
         const cols = prev.columns.map((col) => ({ ...col, cards: [...col.cards] }));
         const srcCol = cols.find((c) => c.id === sourceColId)!;
@@ -179,6 +204,7 @@ export default function BoardPage() {
 
   async function handleDragEnd(event: DragEndEvent) {
     setActiveCard(null);
+    setIsDragging(false);
     if (!board || !event.over) return;
     const cardId = event.active.id as string;
     const overId = event.over.id as string;
@@ -208,13 +234,13 @@ export default function BoardPage() {
       newPosition = (cardsInTarget[overCardIdx - 1].position + cardsInTarget[overCardIdx].position) / 2;
     }
 
-    try {
+    await mutate(async () => {
       await apiFetch(`/cards/${cardId}/move`, {
         method: "PATCH",
         body: JSON.stringify({ columnId: targetCol.id, position: newPosition }),
       });
-      await loadBoard();
-    } catch {}
+      invalidateBoard();
+    });
   }
 
   if (!board) return null;
@@ -389,14 +415,14 @@ export default function BoardPage() {
                             await apiFetch(`/cards/${drawerCard.id}/labels/${cl.labelId}/primary`, { method: "PATCH", body: JSON.stringify({ isPrimary: true }) });
                             const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`);
                             setDrawerCard(updated);
-                            await loadBoard();
+                            invalidateBoard();
                           }} className="text-[10px] text-blue-600 hover:underline">Set primary</button>
                         )}
                         <button onClick={async () => {
                           await apiFetch(`/cards/${drawerCard.id}/labels/${cl.labelId}`, { method: "DELETE" });
                           const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`);
                           setDrawerCard(updated);
-                          await loadBoard();
+                          invalidateBoard();
                         }} className="text-[10px] text-red-500 hover:underline">Remove</button>
                       </div>
                     </div>
@@ -410,7 +436,7 @@ export default function BoardPage() {
                         await apiFetch(`/cards/${drawerCard.id}/labels`, { method: "POST", body: JSON.stringify({ labelId: bl.id }) });
                         const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`);
                         setDrawerCard(updated);
-                        await loadBoard();
+                        invalidateBoard();
                       }} className="flex items-center gap-1 rounded border border-gray-200 px-2 py-0.5 text-xs hover:bg-gray-50">
                         <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: LABEL_COLOR_HEX[bl.color as LabelColor] ?? "#6B7280" }} />
                         {bl.name}
@@ -434,7 +460,7 @@ export default function BoardPage() {
                           await apiFetch(`/subtasks/${st.id}`, { method: "PATCH", body: JSON.stringify({ isDone: !st.isDone }) });
                           const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`);
                           setDrawerCard(updated);
-                          await loadBoard();
+                          invalidateBoard();
                         }}
                         className="h-4 w-4"
                       />
@@ -443,7 +469,7 @@ export default function BoardPage() {
                         await apiFetch(`/subtasks/${st.id}`, { method: "DELETE" });
                         const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`);
                         setDrawerCard(updated);
-                        await loadBoard();
+                        invalidateBoard();
                       }} className="text-xs text-red-400 hover:text-red-600">&times;</button>
                     </div>
                   ))}
@@ -457,7 +483,7 @@ export default function BoardPage() {
                     input.value = "";
                     const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`);
                     setDrawerCard(updated);
-                    await loadBoard();
+                    invalidateBoard();
                   }} className="mt-2">
                     <input name="subtaskTitle" type="text" placeholder="+ Add subtask" maxLength={100} className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" />
                   </form>
@@ -474,7 +500,7 @@ export default function BoardPage() {
                     const dueDate = val ? new Date(val).toISOString() : null;
                     const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`, { method: "PATCH", body: JSON.stringify({ dueDate }) });
                     setDrawerCard(updated);
-                    await loadBoard();
+                    invalidateBoard();
                   }}
                   className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                 />
@@ -500,7 +526,7 @@ export default function BoardPage() {
                           } else {
                             await apiFetch(`/cards/${drawerCard.id}/assignees`, { method: "POST", body: JSON.stringify({ userId: m.userId }) });
                           }
-                          await loadBoard();
+                          invalidateBoard();
                         }}
                         className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm ${isAssigned ? "bg-blue-50" : "hover:bg-gray-50"}`}
                       >
@@ -522,7 +548,7 @@ export default function BoardPage() {
                   onChange={async (e) => {
                     const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`, { method: "PATCH", body: JSON.stringify({ columnId: e.target.value }) });
                     setDrawerCard(updated);
-                    await loadBoard();
+                    invalidateBoard();
                   }}
                   className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
                 >

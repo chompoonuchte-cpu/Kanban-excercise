@@ -28,6 +28,17 @@ export type ErrorResponse = {
   error: string;
 };
 
+export const VALIDATION = {
+  BOARD_NAME_MAX: 100,
+  COLUMN_NAME_MAX: 100,
+  CARD_TITLE_MAX: 255,
+  CARD_DESCRIPTION_MAX: 5000,
+  SUBTASK_TITLE_MAX: 100,
+  SUBTASK_MAX_PER_CARD: 20,
+  PASSWORD_MIN: 8,
+  DISPLAY_NAME_MAX: 100,
+} as const;
+
 export const LABEL_COLORS = [
   "red", "orange", "yellow", "green", "teal",
   "blue", "indigo", "purple", "pink", "gray",
