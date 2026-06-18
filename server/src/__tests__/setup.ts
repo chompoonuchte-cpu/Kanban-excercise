@@ -1,0 +1,10 @@
+import { beforeEach, afterAll } from "vitest";
+import { prisma } from "../db.js";
+
+beforeEach(async () => {
+  await prisma.user.deleteMany();
+});
+
+afterAll(async () => {
+  await prisma.$disconnect();
+});
