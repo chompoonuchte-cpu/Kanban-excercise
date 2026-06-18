@@ -35,6 +35,18 @@ model Column {
   color     String?
   position  Float
   createdAt DateTime @default(now())
+  cards     Card[]
+}
+
+model Card {
+  id          String    @id @default(uuid())
+  columnId    String
+  column      Column    @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  dueDate     DateTime?
+  position    Float
+  createdAt   DateTime  @default(now())
 }
 
 model BoardMember {

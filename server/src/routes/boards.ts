@@ -63,7 +63,10 @@ boardsRouter.get("/:id", async (req, res) => {
   const board = await prisma.board.findUnique({
     where: { id: req.params.id },
     include: {
-      columns: { orderBy: { position: "asc" } },
+      columns: {
+        orderBy: { position: "asc" },
+        include: { cards: { orderBy: { position: "asc" } } },
+      },
     },
   });
 
