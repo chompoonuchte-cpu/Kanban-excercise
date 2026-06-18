@@ -5,6 +5,27 @@ import type { AuthRequest } from "../middleware/auth.js";
 
 export const usersRouter = Router();
 
+usersRouter.get("/search", async (req, res) => {
+  const q = req.query.q as string;
+  if (!q || q.trim().length === 0) {
+    res.json([]);
+    return;
+  }
+
+  const users = await prisma.user.findMany({
+    where: {
+      OR: [
+        { displayName: { contains: q, mode: "insensitive" } },
+        { email: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true, displayName: true, email: true },
+    take: 10,
+  });
+
+  res.json(users);
+});
+
 usersRouter.get("/me", async (req, res) => {
   const { userId } = req as AuthRequest;
   const user = await prisma.user.findUnique({ where: { id: userId } });
