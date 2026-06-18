@@ -13,4 +13,13 @@ model User {
   displayName  String
   passwordHash String
   createdAt    DateTime @default(now())
+  boards       Board[]
+}
+
+model Board {
+  id        String   @id @default(uuid())
+  name      String
+  ownerId   String
+  owner     User     @relation(fields: [ownerId], references: [id])
+  createdAt DateTime @default(now())
 }

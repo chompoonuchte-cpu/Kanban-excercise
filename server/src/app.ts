@@ -3,6 +3,7 @@ import cors from "cors";
 import type { HealthResponse } from "@kanban/shared";
 import { authRouter } from "./routes/auth.js";
 import { usersRouter } from "./routes/users.js";
+import { boardsRouter } from "./routes/boards.js";
 import { requireAuth } from "./middleware/auth.js";
 
 export const app = express();
@@ -15,6 +16,7 @@ app.use("/api/auth", authRouter);
 app.use("/api", requireAuth);
 
 app.use("/api/users", usersRouter);
+app.use("/api/boards", boardsRouter);
 
 app.get("/api/health", (_req, res) => {
   const body: HealthResponse = { status: "ok" };

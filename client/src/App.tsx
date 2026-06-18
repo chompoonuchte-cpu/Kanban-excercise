@@ -3,7 +3,8 @@ import { AuthProvider } from "./contexts/AuthContext.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import LoginPage from "./pages/LoginPage.tsx";
 import RegisterPage from "./pages/RegisterPage.tsx";
-import HomePage from "./pages/HomePage.tsx";
+import BoardListPage from "./pages/BoardListPage.tsx";
+import BoardPage from "./pages/BoardPage.tsx";
 import ProfilePage from "./pages/ProfilePage.tsx";
 import "./index.css";
 
@@ -18,7 +19,15 @@ function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <HomePage />
+                <BoardListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/boards/:id"
+            element={
+              <ProtectedRoute>
+                <BoardPage />
               </ProtectedRoute>
             }
           />
