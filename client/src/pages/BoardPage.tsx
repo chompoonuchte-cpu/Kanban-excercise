@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, type FormEvent, type KeyboardEvent } from "react";
 import { Link, useParams } from "react-router-dom";
+import { DndContext, DragOverlay, useDroppable, useDraggable, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { apiFetch, ApiError } from "../lib/api.ts";
 
@@ -30,8 +31,10 @@ export default function BoardPage() {
   const [drawerCard, setDrawerCard] = useState<CardDetail | null>(null);
   const [drawerTitle, setDrawerTitle] = useState("");
   const [drawerDesc, setDrawerDesc] = useState("");
+  const [activeCard, setActiveCard] = useState<CardData | null>(null);
   const [error, setError] = useState("");
   const cardInputRef = useRef<HTMLInputElement>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   async function loadBoard() {
     const data = await apiFetch<BoardData>(`/boards/${id}`);
@@ -124,6 +127,83 @@ export default function BoardPage() {
     await loadBoard();
   }
 
+  function handleDragStart(event: DragStartEvent) {
+    if (!board) return;
+    const cardId = event.active.id as string;
+    for (const col of board.columns) {
+      const card = col.cards.find((c) => c.id === cardId);
+      if (card) { setActiveCard(card); return; }
+    }
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    if (!board || !event.over) return;
+    const cardId = event.active.id as string;
+    const overId = event.over.id as string;
+
+    let sourceColId: string | null = null;
+    let targetColId: string | null = null;
+
+    for (const col of board.columns) {
+      if (col.cards.some((c) => c.id === cardId)) sourceColId = col.id;
+      if (col.id === overId || col.cards.some((c) => c.id === overId)) targetColId = col.id === overId ? col.id : col.id;
+    }
+
+    if (sourceColId && targetColId && sourceColId !== targetColId) {
+      setBoard((prev) => {
+        if (!prev) return prev;
+        const cols = prev.columns.map((col) => ({ ...col, cards: [...col.cards] }));
+        const srcCol = cols.find((c) => c.id === sourceColId)!;
+        const dstCol = cols.find((c) => c.id === targetColId)!;
+        const cardIdx = srcCol.cards.findIndex((c) => c.id === cardId);
+        if (cardIdx === -1) return prev;
+        const [card] = srcCol.cards.splice(cardIdx, 1);
+        dstCol.cards.push(card);
+        return { ...prev, columns: cols };
+      });
+    }
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveCard(null);
+    if (!board || !event.over) return;
+    const cardId = event.active.id as string;
+    const overId = event.over.id as string;
+
+    let targetCol: ColumnData | null = null;
+    for (const col of board.columns) {
+      if (col.id === overId || col.cards.some((c) => c.id === overId)) {
+        targetCol = col;
+        break;
+      }
+    }
+    if (!targetCol) return;
+
+    const cardsInTarget = targetCol.cards.filter((c) => c.id !== cardId);
+    const overCardIdx = cardsInTarget.findIndex((c) => c.id === overId);
+
+    let newPosition: number;
+    if (overId === targetCol.id || cardsInTarget.length === 0) {
+      const last = cardsInTarget[cardsInTarget.length - 1];
+      newPosition = last ? last.position + 1024 : 1024;
+    } else if (overCardIdx === 0) {
+      newPosition = cardsInTarget[0].position / 2;
+    } else if (overCardIdx === -1) {
+      const last = cardsInTarget[cardsInTarget.length - 1];
+      newPosition = last ? last.position + 1024 : 1024;
+    } else {
+      newPosition = (cardsInTarget[overCardIdx - 1].position + cardsInTarget[overCardIdx].position) / 2;
+    }
+
+    try {
+      await apiFetch(`/cards/${cardId}/move`, {
+        method: "PATCH",
+        body: JSON.stringify({ columnId: targetCol.id, position: newPosition }),
+      });
+      await loadBoard();
+    } catch {}
+  }
+
   if (!board) return null;
 
   return (
@@ -173,88 +253,77 @@ export default function BoardPage() {
       )}
 
       {/* Columns */}
-      <div className="flex flex-1 gap-4 overflow-x-auto p-6">
-        {board.columns.map((col) => (
-          <div key={col.id} className="flex w-72 shrink-0 flex-col rounded-lg bg-gray-100 p-3" style={col.color ? { backgroundColor: `${col.color}15`, borderTop: `3px solid ${col.color}` } : undefined}>
-            {/* Column header */}
-            {editingColId === col.id ? (
-              <div className="mb-3 space-y-2">
-                <input type="text" value={editColName} onChange={(e) => setEditColName(e.target.value)} maxLength={100} className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none" autoFocus />
-                <div className="flex flex-wrap gap-1">
-                  <button onClick={() => setEditColColor(null)} className={`h-6 w-6 rounded border-2 bg-gray-200 ${editColColor === null ? "border-gray-800" : "border-transparent"}`} title="No color" />
-                  {PRESET_COLORS.map((c) => (<button key={c} onClick={() => setEditColColor(c)} className={`h-6 w-6 rounded border-2 ${editColColor === c ? "border-gray-800" : "border-transparent"}`} style={{ backgroundColor: c }} />))}
+      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+        <div className="flex flex-1 gap-4 overflow-x-auto p-6">
+          {board.columns.map((col) => (
+            <DroppableColumn key={col.id} col={col}>
+              {editingColId === col.id ? (
+                <div className="mb-3 space-y-2">
+                  <input type="text" value={editColName} onChange={(e) => setEditColName(e.target.value)} maxLength={100} className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none" autoFocus />
+                  <div className="flex flex-wrap gap-1">
+                    <button onClick={() => setEditColColor(null)} className={`h-6 w-6 rounded border-2 bg-gray-200 ${editColColor === null ? "border-gray-800" : "border-transparent"}`} title="No color" />
+                    {PRESET_COLORS.map((c) => (<button key={c} onClick={() => setEditColColor(c)} className={`h-6 w-6 rounded border-2 ${editColColor === c ? "border-gray-800" : "border-transparent"}`} style={{ backgroundColor: c }} />))}
+                  </div>
+                  <input type="text" value={editColColor ?? ""} onChange={(e) => setEditColColor(e.target.value || null)} placeholder="#hex" className="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none" />
+                  <div className="flex gap-2">
+                    <button onClick={() => handleUpdateColumn(col.id)} className="text-xs text-blue-600 hover:underline">Save</button>
+                    <button onClick={() => setEditingColId(null)} className="text-xs text-gray-500 hover:underline">Cancel</button>
+                  </div>
                 </div>
-                <input type="text" value={editColColor ?? ""} onChange={(e) => setEditColColor(e.target.value || null)} placeholder="#hex" className="w-full rounded border border-gray-300 px-2 py-1 text-xs focus:border-blue-500 focus:outline-none" />
-                <div className="flex gap-2">
-                  <button onClick={() => handleUpdateColumn(col.id)} className="text-xs text-blue-600 hover:underline">Save</button>
-                  <button onClick={() => setEditingColId(null)} className="text-xs text-gray-500 hover:underline">Cancel</button>
+              ) : (
+                <div className="mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {col.color && <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: col.color }} />}
+                    <span className="text-sm font-semibold text-gray-700">{col.name}</span>
+                    <span className="text-xs text-gray-400">{col.cards.length}</span>
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => { setEditingColId(col.id); setEditColName(col.name); setEditColColor(col.color); }} className="text-xs text-gray-400 hover:text-blue-600">&#9998;</button>
+                    <button onClick={() => handleDeleteColumn(col.id)} className="text-xs text-gray-400 hover:text-red-600">&#128465;</button>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="mb-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {col.color && <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: col.color }} />}
-                  <span className="text-sm font-semibold text-gray-700">{col.name}</span>
-                  <span className="text-xs text-gray-400">{col.cards.length}</span>
-                </div>
-                <div className="flex gap-1">
-                  <button onClick={() => { setEditingColId(col.id); setEditColName(col.name); setEditColColor(col.color); }} className="text-xs text-gray-400 hover:text-blue-600">&#9998;</button>
-                  <button onClick={() => handleDeleteColumn(col.id)} className="text-xs text-gray-400 hover:text-red-600">&#128465;</button>
-                </div>
-              </div>
-            )}
-
-            {/* Cards */}
-            <div className="flex-1 space-y-2">
-              {col.cards.length === 0 && addingCardColId !== col.id && (
-                <p className="text-center text-xs text-gray-400">No cards yet.</p>
               )}
-              {col.cards.map((card) => (
-                <button
-                  key={card.id}
-                  onClick={() => openDrawer(card.id)}
-                  className="w-full rounded-lg bg-white p-3 text-left shadow-sm hover:shadow transition-shadow"
-                >
-                  <p className="text-sm font-medium text-gray-800">{card.title}</p>
-                </button>
-              ))}
-            </div>
 
-            {/* Inline Input */}
-            {addingCardColId === col.id ? (
-              <div className="mt-2">
-                <input
-                  ref={cardInputRef}
-                  type="text"
-                  value={newCardTitle}
-                  onChange={(e) => setNewCardTitle(e.target.value)}
-                  onKeyDown={(e) => handleCardInputKey(e, col.id)}
-                  onBlur={() => { if (!newCardTitle.trim()) { setAddingCardColId(null); } }}
-                  placeholder="Card title..."
-                  maxLength={255}
-                  className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                  autoFocus
-                />
+              <div className="flex-1 space-y-2">
+                {col.cards.length === 0 && addingCardColId !== col.id && (
+                  <p className="text-center text-xs text-gray-400">No cards yet.</p>
+                )}
+                {col.cards.map((card) => (
+                  <DraggableCard key={card.id} card={card} onClick={() => openDrawer(card.id)} />
+                ))}
               </div>
-            ) : (
-              <button onClick={() => { setAddingCardColId(col.id); setNewCardTitle(""); }} className="mt-2 text-left text-sm text-gray-400 hover:text-blue-600">+ New card</button>
-            )}
-          </div>
-        ))}
 
-        {/* Add column */}
-        {showAddColumn ? (
-          <form onSubmit={handleAddColumn} className="w-72 shrink-0 rounded-lg border-2 border-dashed border-gray-300 p-3">
-            <input type="text" value={newColName} onChange={(e) => setNewColName(e.target.value)} placeholder="Column name" maxLength={100} required className="mb-2 w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none" autoFocus />
-            <div className="flex gap-2">
-              <button type="submit" className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700">Add</button>
-              <button type="button" onClick={() => setShowAddColumn(false)} className="text-xs text-gray-500 hover:underline">Cancel</button>
+              {addingCardColId === col.id ? (
+                <div className="mt-2">
+                  <input ref={cardInputRef} type="text" value={newCardTitle} onChange={(e) => setNewCardTitle(e.target.value)} onKeyDown={(e) => handleCardInputKey(e, col.id)} onBlur={() => { if (!newCardTitle.trim()) { setAddingCardColId(null); } }} placeholder="Card title..." maxLength={255} className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none" autoFocus />
+                </div>
+              ) : (
+                <button onClick={() => { setAddingCardColId(col.id); setNewCardTitle(""); }} className="mt-2 text-left text-sm text-gray-400 hover:text-blue-600">+ New card</button>
+              )}
+            </DroppableColumn>
+          ))}
+
+          {showAddColumn ? (
+            <form onSubmit={handleAddColumn} className="w-72 shrink-0 rounded-lg border-2 border-dashed border-gray-300 p-3">
+              <input type="text" value={newColName} onChange={(e) => setNewColName(e.target.value)} placeholder="Column name" maxLength={100} required className="mb-2 w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none" autoFocus />
+              <div className="flex gap-2">
+                <button type="submit" className="rounded bg-blue-600 px-3 py-1 text-xs text-white hover:bg-blue-700">Add</button>
+                <button type="button" onClick={() => setShowAddColumn(false)} className="text-xs text-gray-500 hover:underline">Cancel</button>
+              </div>
+            </form>
+          ) : (
+            <button onClick={() => setShowAddColumn(true)} className="flex h-12 w-72 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 text-sm text-gray-400 hover:border-blue-400 hover:text-blue-500">+ Add column</button>
+          )}
+        </div>
+
+        <DragOverlay>
+          {activeCard && (
+            <div className="w-72 rounded-lg bg-white p-3 shadow-lg opacity-90">
+              <p className="text-sm font-medium text-gray-800">{activeCard.title}</p>
             </div>
-          </form>
-        ) : (
-          <button onClick={() => setShowAddColumn(true)} className="flex h-12 w-72 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 text-sm text-gray-400 hover:border-blue-400 hover:text-blue-500">+ Add column</button>
-        )}
-      </div>
+          )}
+        </DragOverlay>
+      </DndContext>
 
       {/* Side Drawer */}
       {drawerCard && (
@@ -298,5 +367,33 @@ export default function BoardPage() {
         </>
       )}
     </div>
+  );
+}
+
+function DroppableColumn({ col, children }: { col: ColumnData; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: col.id });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex w-72 shrink-0 flex-col rounded-lg p-3 transition-colors ${isOver ? "bg-blue-50" : "bg-gray-100"}`}
+      style={col.color ? { backgroundColor: isOver ? `${col.color}25` : `${col.color}15`, borderTop: `3px solid ${col.color}` } : undefined}
+    >
+      {children}
+    </div>
+  );
+}
+
+function DraggableCard({ card, onClick }: { card: CardData; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: card.id });
+  return (
+    <button
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      onClick={onClick}
+      className={`w-full rounded-lg bg-white p-3 text-left shadow-sm hover:shadow transition-shadow ${isDragging ? "opacity-30" : ""}`}
+    >
+      <p className="text-sm font-medium text-gray-800">{card.title}</p>
+    </button>
   );
 }

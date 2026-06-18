@@ -132,6 +132,37 @@ cardsRouter.patch("/cards/:id", async (req, res) => {
   res.json(updated);
 });
 
+cardsRouter.patch("/cards/:id/move", async (req, res) => {
+  const { userId } = req as AuthRequest;
+  const card = await prisma.card.findUnique({
+    where: { id: req.params.id },
+    include: { column: { select: { boardId: true } } },
+  });
+
+  if (!card) {
+    res.status(404).json({ error: "Card not found" });
+    return;
+  }
+
+  if (!(await canAccessBoard(card.column.boardId, userId!))) {
+    res.status(403).json({ error: "Not authorized" });
+    return;
+  }
+
+  const { columnId, position } = req.body;
+  if (!columnId || typeof position !== "number") {
+    res.status(400).json({ error: "columnId and position are required" });
+    return;
+  }
+
+  const updated = await prisma.card.update({
+    where: { id: card.id },
+    data: { columnId, position },
+  });
+
+  res.json(updated);
+});
+
 cardsRouter.delete("/cards/:id", async (req, res) => {
   const { userId } = req as AuthRequest;
   const card = await prisma.card.findUnique({
