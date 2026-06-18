@@ -6,6 +6,7 @@ import { usersRouter } from "./routes/users.js";
 import { boardsRouter } from "./routes/boards.js";
 import { columnsRouter } from "./routes/columns.js";
 import { cardsRouter } from "./routes/cards.js";
+import { labelsRouter } from "./routes/labels.js";
 import { requireAuth } from "./middleware/auth.js";
 
 export const app = express();
@@ -21,6 +22,7 @@ app.use("/api/users", usersRouter);
 app.use("/api/boards", boardsRouter);
 app.use("/api", columnsRouter);
 app.use("/api", cardsRouter);
+app.use("/api", labelsRouter);
 
 app.get("/api/health", (_req, res) => {
   const body: HealthResponse = { status: "ok" };

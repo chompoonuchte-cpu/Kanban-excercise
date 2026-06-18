@@ -65,12 +65,35 @@ boardsRouter.get("/:id", async (req, res) => {
     include: {
       columns: {
         orderBy: { position: "asc" },
-        include: { cards: { orderBy: { position: "asc" } } },
+        include: {
+          cards: {
+            orderBy: { position: "asc" },
+            include: {
+              labels: {
+                where: { isPrimary: true },
+                include: { label: true },
+                take: 1,
+              },
+            },
+          },
+        },
       },
     },
   });
 
-  res.json(board);
+  const result = {
+    ...board,
+    columns: board!.columns.map((col) => ({
+      ...col,
+      cards: col.cards.map((card) => {
+        const primary = card.labels[0]?.label ?? null;
+        const { labels: _labels, ...cardData } = card;
+        return { ...cardData, primaryLabel: primary };
+      }),
+    })),
+  };
+
+  res.json(result);
 });
 
 boardsRouter.patch("/:id", async (req, res) => {

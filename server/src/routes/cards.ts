@@ -54,7 +54,10 @@ cardsRouter.get("/cards/:id", async (req, res) => {
   const { userId } = req as AuthRequest;
   const card = await prisma.card.findUnique({
     where: { id: req.params.id },
-    include: { column: { select: { boardId: true } } },
+    include: {
+      column: { select: { boardId: true } },
+      labels: { include: { label: true } },
+    },
   });
 
   if (!card) {

@@ -25,6 +25,7 @@ model Board {
   createdAt DateTime      @default(now())
   members   BoardMember[]
   columns   Column[]
+  labels    Label[]
 }
 
 model Column {
@@ -39,14 +40,35 @@ model Column {
 }
 
 model Card {
-  id          String    @id @default(uuid())
+  id          String      @id @default(uuid())
   columnId    String
-  column      Column    @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  column      Column      @relation(fields: [columnId], references: [id], onDelete: Cascade)
   title       String
   description String?
   dueDate     DateTime?
   position    Float
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime    @default(now())
+  labels      CardLabel[]
+}
+
+model Label {
+  id        String      @id @default(uuid())
+  boardId   String
+  board     Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  name      String
+  color     String
+  createdAt DateTime    @default(now())
+  cards     CardLabel[]
+}
+
+model CardLabel {
+  cardId    String
+  labelId   String
+  isPrimary Boolean @default(false)
+  card      Card    @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  label     Label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([cardId, labelId])
 }
 
 model BoardMember {

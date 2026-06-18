@@ -3,11 +3,15 @@ import { Link, useParams } from "react-router-dom";
 import { DndContext, DragOverlay, useDroppable, useDraggable, PointerSensor, useSensor, useSensors, type DragStartEvent, type DragEndEvent, type DragOverEvent } from "@dnd-kit/core";
 import { useAuth } from "../contexts/AuthContext.tsx";
 import { apiFetch, ApiError } from "../lib/api.ts";
+import { LABEL_COLORS, LABEL_COLOR_HEX, type LabelColor } from "@kanban/shared";
 
-type CardData = { id: string; title: string; position: number };
+type PrimaryLabel = { id: string; name: string; color: string } | null;
+type CardData = { id: string; title: string; position: number; primaryLabel?: PrimaryLabel };
 type ColumnData = { id: string; name: string; color: string | null; position: number; cards: CardData[] };
 type BoardData = { id: string; name: string; ownerId: string; columns: ColumnData[] };
-type CardDetail = { id: string; title: string; description: string | null; dueDate: string | null; columnId: string };
+type LabelData = { id: string; name: string; color: string; boardId: string };
+type CardLabelEntry = { labelId: string; isPrimary: boolean; label: LabelData };
+type CardDetail = { id: string; title: string; description: string | null; dueDate: string | null; columnId: string; labels: CardLabelEntry[] };
 type MemberEntry = { userId: string; role: "OWNER" | "MEMBER"; user: { id: string; displayName: string; email: string } };
 type SearchUser = { id: string; displayName: string; email: string };
 
@@ -31,6 +35,7 @@ export default function BoardPage() {
   const [drawerCard, setDrawerCard] = useState<CardDetail | null>(null);
   const [drawerTitle, setDrawerTitle] = useState("");
   const [drawerDesc, setDrawerDesc] = useState("");
+  const [boardLabels, setBoardLabels] = useState<LabelData[]>([]);
   const [activeCard, setActiveCard] = useState<CardData | null>(null);
   const [error, setError] = useState("");
   const cardInputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +46,12 @@ export default function BoardPage() {
     setBoard(data);
   }
 
-  useEffect(() => { loadBoard(); apiFetch<MemberEntry[]>(`/boards/${id}/members`).then(setMembers); }, [id]);
+  async function loadLabels() {
+    const labels = await apiFetch<LabelData[]>(`/boards/${id}/labels`);
+    setBoardLabels(labels);
+  }
+
+  useEffect(() => { loadBoard(); apiFetch<MemberEntry[]>(`/boards/${id}/members`).then(setMembers); loadLabels(); }, [id]);
 
   useEffect(() => {
     if (searchQuery.length < 2) { setSearchResults([]); return; }
@@ -359,6 +369,53 @@ export default function BoardPage() {
                 />
                 <p className="text-right text-xs text-gray-400">{drawerDesc.length}/5000</p>
               </div>
+              {/* Labels */}
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-gray-500 uppercase">Labels</label>
+                <div className="space-y-1">
+                  {drawerCard.labels.map((cl) => (
+                    <div key={cl.labelId} className="flex items-center justify-between rounded px-2 py-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: LABEL_COLOR_HEX[cl.label.color as LabelColor] ?? "#6B7280" }} />
+                        <span>{cl.label.name}</span>
+                        {cl.isPrimary && <span className="text-[10px] text-blue-600 font-bold">PRIMARY</span>}
+                      </div>
+                      <div className="flex gap-2">
+                        {!cl.isPrimary && (
+                          <button onClick={async () => {
+                            await apiFetch(`/cards/${drawerCard.id}/labels/${cl.labelId}/primary`, { method: "PATCH", body: JSON.stringify({ isPrimary: true }) });
+                            const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`);
+                            setDrawerCard(updated);
+                            await loadBoard();
+                          }} className="text-[10px] text-blue-600 hover:underline">Set primary</button>
+                        )}
+                        <button onClick={async () => {
+                          await apiFetch(`/cards/${drawerCard.id}/labels/${cl.labelId}`, { method: "DELETE" });
+                          const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`);
+                          setDrawerCard(updated);
+                          await loadBoard();
+                        }} className="text-[10px] text-red-500 hover:underline">Remove</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2">
+                  <p className="text-xs text-gray-400 mb-1">Add label:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {boardLabels.filter((bl) => !drawerCard.labels.some((cl) => cl.labelId === bl.id)).map((bl) => (
+                      <button key={bl.id} onClick={async () => {
+                        await apiFetch(`/cards/${drawerCard.id}/labels`, { method: "POST", body: JSON.stringify({ labelId: bl.id }) });
+                        const updated = await apiFetch<CardDetail>(`/cards/${drawerCard.id}`);
+                        setDrawerCard(updated);
+                        await loadBoard();
+                      }} className="flex items-center gap-1 rounded border border-gray-200 px-2 py-0.5 text-xs hover:bg-gray-50">
+                        <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: LABEL_COLOR_HEX[bl.color as LabelColor] ?? "#6B7280" }} />
+                        {bl.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="border-t border-gray-200 px-6 py-4">
               <button onClick={deleteCardFromDrawer} className="text-sm text-red-600 hover:underline">Delete Card</button>
@@ -393,6 +450,11 @@ function DraggableCard({ card, onClick }: { card: CardData; onClick: () => void 
       onClick={onClick}
       className={`w-full rounded-lg bg-white p-3 text-left shadow-sm hover:shadow transition-shadow ${isDragging ? "opacity-30" : ""}`}
     >
+      {card.primaryLabel && (
+        <span className="mb-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-bold uppercase text-white" style={{ backgroundColor: LABEL_COLOR_HEX[card.primaryLabel.color as LabelColor] ?? card.primaryLabel.color }}>
+          {card.primaryLabel.name}
+        </span>
+      )}
       <p className="text-sm font-medium text-gray-800">{card.title}</p>
     </button>
   );
