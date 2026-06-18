@@ -52,13 +52,20 @@ boardsRouter.get("/", async (req, res) => {
 
 boardsRouter.get("/:id", async (req, res) => {
   const { userId } = req as AuthRequest;
-  const board = await canAccessBoard(req.params.id, userId!);
+  const access = await canAccessBoard(req.params.id, userId!);
 
-  if (!board) {
+  if (!access) {
     const exists = await prisma.board.findUnique({ where: { id: req.params.id } });
     res.status(exists ? 403 : 404).json({ error: exists ? "Not authorized" : "Board not found" });
     return;
   }
+
+  const board = await prisma.board.findUnique({
+    where: { id: req.params.id },
+    include: {
+      columns: { orderBy: { position: "asc" } },
+    },
+  });
 
   res.json(board);
 });

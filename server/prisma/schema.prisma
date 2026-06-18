@@ -24,6 +24,17 @@ model Board {
   owner     User          @relation(fields: [ownerId], references: [id])
   createdAt DateTime      @default(now())
   members   BoardMember[]
+  columns   Column[]
+}
+
+model Column {
+  id        String   @id @default(uuid())
+  boardId   String
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  name      String
+  color     String?
+  position  Float
+  createdAt DateTime @default(now())
 }
 
 model BoardMember {
